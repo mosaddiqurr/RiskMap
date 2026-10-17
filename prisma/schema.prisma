@@ -1,0 +1,818 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  ANALYST
+  VIEWER
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  CANCELED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+enum VerificationMethod {
+  DNS_TXT
+  HTML_FILE
+  DEMO
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+}
+
+enum ScanPermission {
+  PASSIVE
+  SAFE_ACTIVE
+}
+
+enum AssetType {
+  ROOT_DOMAIN
+  SUBDOMAIN
+  IP_ADDRESS
+  WEB_APPLICATION
+  API_ENDPOINT
+  EMAIL_SERVICE
+  DNS_SERVICE
+  CERTIFICATE
+  NETWORK_SERVICE
+  CRITICAL_ASSET
+  EXTERNAL_DEPENDENCY
+  POTENTIAL_ENTRY_POINT
+}
+
+enum AssetStatus {
+  ACTIVE
+  INACTIVE
+  EXCLUDED
+}
+
+enum Criticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RelationshipState {
+  OBSERVED
+  INFERRED
+}
+
+enum Confidence {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ScanStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  PARTIALLY_COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ScanModule {
+  PASSIVE_DISCOVERY
+  DNS
+  HTTP
+  TLS
+  EMAIL_SECURITY
+  PORT_CHECKS
+  TECHNOLOGY
+  GRAPH
+}
+
+enum ScanModuleStatus {
+  COMPLETED
+  PARTIAL
+  FAILED
+  SKIPPED
+}
+
+enum ServiceObservedState {
+  OPEN
+  CLOSED
+  UNKNOWN
+}
+
+enum FindingSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum FindingStatus {
+  OPEN
+  ACCEPTED_RISK
+  IN_PROGRESS
+  RESOLVED
+  FALSE_POSITIVE
+  REOPENED
+}
+
+enum AlertSeverity {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+  INFORMATIONAL
+}
+
+enum AlertType {
+  NEW_CRITICAL_ASSET
+  NEW_HIGH_FINDING
+  NEW_RISKY_PORT
+  NEW_ATTACK_PATH
+  EXPIRING_CERTIFICATE
+  FAILED_SCAN
+  VERIFICATION_PROBLEM
+  RISK_SCORE_INCREASE
+}
+
+enum ReportType {
+  EXECUTIVE
+  TECHNICAL
+  ASSET_INVENTORY
+  SCAN_COMPARISON
+  ATTACK_PATH
+}
+
+enum ReportStatus {
+  READY
+  GENERATING
+  FAILED
+}
+
+model User {
+  id               String                @id @default(cuid())
+  email            String                @unique
+  name             String
+  passwordHash     String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  deletedAt        DateTime?
+  sessions         Session[]
+  memberships      Membership[]
+  sentInvitations  Invitation[]          @relation("InvitationSender")
+  assignedFindings Finding[]              @relation("FindingAssignee")
+  reports          Report[]               @relation("ReportCreator")
+  auditLogs        AuditLog[]
+  notifications    NotificationSetting[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Organisation {
+  id                   String                  @id @default(cuid())
+  name                 String
+  slug                 String                  @unique
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  deletedAt            DateTime?
+  memberships          Membership[]
+  invitations          Invitation[]
+  subscription         Subscription?
+  rootDomains          RootDomain[]
+  assets               Asset[]
+  services             Service[]
+  relationships        AssetRelationship[]
+  scans                Scan[]
+  observations         ScanObservation[]
+  findings             Finding[]
+  attackPaths          AttackPath[]
+  technologyObservations TechnologyObservation[]
+  alerts               Alert[]
+  reports              Report[]
+  auditLogs            AuditLog[]
+  scanExclusions       ScanExclusion[]
+  notificationSettings NotificationSetting[]
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  organisationId String
+  userId         String
+  role           Role         @default(VIEWER)
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  organisationId String
+  email          String
+  role           Role
+  status         InvitationStatus @default(PENDING)
+  tokenHash      String           @unique
+  invitedById    String
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+  organisation   Organisation     @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  invitedBy      User             @relation("InvitationSender", fields: [invitedById], references: [id])
+
+  @@index([organisationId, email])
+}
+
+model Subscription {
+  id               String             @id @default(cuid())
+  organisationId   String             @unique
+  plan             Plan               @default(FREE)
+  status           SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  organisation     Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+}
+
+model RootDomain {
+  id                     String             @id @default(cuid())
+  organisationId         String
+  domain                 String
+  verificationStatus     VerificationStatus @default(PENDING)
+  verifiedAt             DateTime?
+  scanPermission         ScanPermission     @default(PASSIVE)
+  activeChecksAuthorized Boolean            @default(false)
+  preferredScanWindow    String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  deletedAt              DateTime?
+  organisation           Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  challenges             VerificationChallenge[]
+  assets                 Asset[]
+  scans                  Scan[]
+  exclusions             ScanExclusion[]
+
+  @@unique([organisationId, domain])
+  @@index([organisationId, verificationStatus])
+}
+
+model VerificationChallenge {
+  id           String             @id @default(cuid())
+  rootDomainId String
+  method       VerificationMethod
+  token        String
+  status       VerificationStatus @default(PENDING)
+  expiresAt    DateTime
+  verifiedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  rootDomain   RootDomain         @relation(fields: [rootDomainId], references: [id], onDelete: Cascade)
+
+  @@index([rootDomainId, status])
+}
+
+model Asset {
+  id                      String             @id @default(cuid())
+  organisationId          String
+  rootDomainId            String?
+  fingerprint             String
+  name                    String
+  type                    AssetType
+  hostname                String?
+  normalizedHostname      String?
+  ipAddress               String?
+  normalizedIpAddress     String?
+  port                    Int?
+  protocol                String?
+  serviceIdentifier       String?
+  status                  AssetStatus        @default(ACTIVE)
+  active                  Boolean            @default(true)
+  verificationStatus      VerificationStatus @default(VERIFIED)
+  criticality             Criticality        @default(MEDIUM)
+  source                  String
+  tagsJson                String             @default("[]")
+  ownerName               String?
+  notes                   String?
+  firstSeen               DateTime           @default(now())
+  lastSeen                DateTime           @default(now())
+  lastScanId              String?
+  consecutivePresenceCount Int               @default(0)
+  consecutiveAbsenceCount  Int               @default(0)
+  reappearedAt            DateTime?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  deletedAt               DateTime?
+  organisation            Organisation       @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  rootDomain              RootDomain?        @relation(fields: [rootDomainId], references: [id], onDelete: SetNull)
+  outgoingRelations       AssetRelationship[] @relation("RelationshipFrom")
+  incomingRelations       AssetRelationship[] @relation("RelationshipTo")
+  observations            ScanObservation[]
+  presences               AssetPresence[]
+  services                Service[]
+  technologies            TechnologyObservation[]
+  findings                Finding[]
+  entryPaths              AttackPath[]        @relation("AttackPathEntry")
+  targetPaths             AttackPath[]        @relation("AttackPathTarget")
+  pathSteps               AttackPathStep[]
+
+  @@unique([organisationId, fingerprint])
+  @@index([organisationId, type])
+  @@index([organisationId, normalizedHostname])
+  @@index([organisationId, normalizedIpAddress])
+  @@index([organisationId, status])
+  @@index([rootDomainId, active])
+}
+
+model AssetPresence {
+  id         String   @id @default(cuid())
+  assetId    String
+  scanId     String
+  observed   Boolean
+  transition String
+  createdAt  DateTime @default(now())
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scan       Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, scanId])
+  @@index([scanId, observed])
+}
+
+model Service {
+  id                       String               @id @default(cuid())
+  organisationId           String
+  assetId                  String
+  fingerprint              String
+  port                     Int
+  protocol                 String
+  transport                String
+  serviceIdentifier        String?
+  observedState            ServiceObservedState @default(UNKNOWN)
+  active                   Boolean              @default(true)
+  confidence               Confidence
+  evidenceSource           String
+  evidence                 String
+  metadataJson             String               @default("{}")
+  sourceModule             ScanModule           @default(PORT_CHECKS)
+  firstSeen                DateTime              @default(now())
+  lastSeen                 DateTime              @default(now())
+  lastScanId               String?
+  consecutivePresenceCount Int                   @default(0)
+  consecutiveAbsenceCount  Int                   @default(0)
+  reappearedAt             DateTime?
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  organisation             Organisation          @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  asset                    Asset                 @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  presences                ServicePresence[]
+  technologies             TechnologyObservation[]
+  observations             ScanObservation[]
+  findings                 Finding[]
+
+  @@unique([organisationId, fingerprint])
+  @@index([assetId, active])
+  @@index([organisationId, port, protocol])
+}
+
+model ServicePresence {
+  id         String   @id @default(cuid())
+  serviceId  String
+  scanId     String
+  observed   Boolean
+  state      ServiceObservedState
+  transition String
+  metadataJson String @default("{}")
+  createdAt  DateTime @default(now())
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  scan       Scan     @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, scanId])
+  @@index([scanId, observed])
+}
+
+model AssetRelationship {
+  id             String            @id @default(cuid())
+  organisationId String
+  fingerprint    String
+  fromAssetId    String
+  toAssetId      String
+  type           String
+  source         String
+  confidence     Confidence
+  evidence       String
+  state          RelationshipState @default(OBSERVED)
+  firstSeen      DateTime          @default(now())
+  lastSeen       DateTime          @default(now())
+  lastScanId     String?
+  active         Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  organisation   Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  fromAsset      Asset             @relation("RelationshipFrom", fields: [fromAssetId], references: [id], onDelete: Cascade)
+  toAsset        Asset             @relation("RelationshipTo", fields: [toAssetId], references: [id], onDelete: Cascade)
+  pathSteps      AttackPathStep[]
+
+  @@unique([organisationId, fingerprint])
+  @@index([organisationId, state, active])
+  @@index([fromAssetId, toAssetId])
+}
+
+model Scan {
+  id                String       @id @default(cuid())
+  organisationId    String
+  rootDomainId      String
+  status            ScanStatus   @default(QUEUED)
+  trigger           String       @default("manual")
+  progress          Int          @default(0)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  logJson           String       @default("[]")
+  summaryJson       String       @default("{}")
+  comparisonJson    String       @default("{}")
+  riskScore         Int?
+  previousRiskScore Int?
+  previousScanId    String?
+  error             String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  organisation      Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  rootDomain        RootDomain   @relation(fields: [rootDomainId], references: [id], onDelete: Cascade)
+  job               ScanJob?
+  modules           ScanModuleResult[]
+  observations      ScanObservation[]
+  assetPresences    AssetPresence[]
+  servicePresences  ServicePresence[]
+  findingObservations FindingObservation[]
+  technologyObservations TechnologyObservation[]
+  attackPathObservations AttackPathObservation[]
+  findings          Finding[]
+  attackPaths       AttackPath[]
+
+  @@index([organisationId, createdAt])
+  @@index([rootDomainId, status, completedAt])
+  @@index([status, createdAt])
+}
+
+model ScanJob {
+  id          String    @id @default(cuid())
+  scanId      String    @unique
+  status      JobStatus @default(QUEUED)
+  attempts    Int       @default(0)
+  availableAt DateTime  @default(now())
+  lockedAt    DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  scan        Scan      @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+}
+
+model ScanModuleResult {
+  id          String           @id @default(cuid())
+  scanId      String
+  module      ScanModule
+  status      ScanModuleStatus
+  recordCount Int              @default(0)
+  error       String?
+  startedAt   DateTime         @default(now())
+  completedAt DateTime?
+  scan        Scan             @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@unique([scanId, module])
+  @@index([module, status])
+}
+
+model ScanObservation {
+  id             String       @id @default(cuid())
+  organisationId String
+  scanId         String
+  assetId        String?
+  serviceId      String?
+  fingerprint    String
+  module         ScanModule
+  type           String
+  success        Boolean      @default(true)
+  dataJson       String
+  observedAt     DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  scan           Scan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  asset          Asset?       @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  service        Service?     @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@unique([scanId, fingerprint])
+  @@index([scanId, type])
+  @@index([organisationId, observedAt])
+}
+
+model TechnologyObservation {
+  id             String       @id @default(cuid())
+  organisationId String
+  scanId         String
+  assetId        String
+  serviceId      String?
+  fingerprint    String
+  productName    String
+  version        String?
+  confidence     Confidence
+  evidence       String
+  source         String
+  firstSeen      DateTime     @default(now())
+  lastSeen       DateTime     @default(now())
+  active         Boolean      @default(true)
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  scan           Scan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  asset          Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  service        Service?     @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, fingerprint])
+  @@index([assetId, active])
+  @@index([scanId])
+}
+
+model Finding {
+  id                     String            @id @default(cuid())
+  organisationId         String
+  scanId                 String?
+  assetId                String
+  serviceId              String?
+  fingerprint            String
+  ruleId                 String
+  module                 ScanModule
+  title                  String
+  severity               FindingSeverity
+  status                 FindingStatus     @default(OPEN)
+  category               String
+  description            String
+  evidenceSummary        String
+  evidenceIdentity       String?
+  firstSeen              DateTime          @default(now())
+  lastSeen               DateTime          @default(now())
+  lastScanId             String?
+  currentlyObserved      Boolean           @default(true)
+  observationCount       Int               @default(1)
+  consecutiveMisses      Int               @default(0)
+  recurrenceCount        Int               @default(0)
+  resolvedAt             DateTime?
+  resolutionScanId       String?
+  reopenedAt             DateTime?
+  confidence             Confidence
+  source                 String
+  remediation            String
+  technicalDetail        String
+  businessImpact         String
+  referencesJson         String            @default("[]")
+  falsePositive          Boolean           @default(false)
+  assignedUserId         String?
+  dueDate                DateTime?
+  notes                  String?
+  isNew                  Boolean           @default(false)
+  externallyReachable    Boolean           @default(true)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+  deletedAt              DateTime?
+  organisation           Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  scan                   Scan?             @relation(fields: [scanId], references: [id], onDelete: SetNull)
+  asset                  Asset             @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  service                Service?          @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  assignedUser           User?             @relation("FindingAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  evidence               FindingEvidence[]
+  observations           FindingObservation[]
+  pathSteps              AttackPathStep[]
+
+  @@unique([organisationId, fingerprint])
+  @@index([organisationId, severity, status])
+  @@index([assetId, status])
+  @@index([serviceId, status])
+  @@index([module, currentlyObserved])
+}
+
+model FindingEvidence {
+  id          String   @id @default(cuid())
+  findingId   String
+  scanId      String?
+  kind        String
+  value       String
+  collectedAt DateTime @default(now())
+  finding     Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@index([findingId])
+  @@index([scanId])
+}
+
+model FindingObservation {
+  id              String          @id @default(cuid())
+  findingId       String
+  scanId          String
+  observed        Boolean
+  severity        FindingSeverity
+  confidence      Confidence
+  statusAfter     FindingStatus
+  evidenceSummary String
+  createdAt       DateTime        @default(now())
+  finding         Finding         @relation(fields: [findingId], references: [id], onDelete: Cascade)
+  scan            Scan            @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@unique([findingId, scanId])
+  @@index([scanId, observed])
+}
+
+model AttackPath {
+  id                    String       @id @default(cuid())
+  organisationId        String
+  scanId                String?
+  fingerprint           String
+  pathType              String
+  name                  String
+  riskScore             Int
+  confidence            Confidence
+  entryAssetId          String?
+  targetAssetId         String?
+  evidence              String
+  weakestLink           String
+  recommendedFix        String
+  recommendedBreakPoint String?
+  riskReduction         Int
+  scoreContributorsJson String       @default("{}")
+  active                Boolean      @default(true)
+  isNew                 Boolean      @default(true)
+  firstSeen             DateTime     @default(now())
+  lastSeen              DateTime     @default(now())
+  lastScanId            String?
+  occurrenceCount       Int          @default(1)
+  createdAt             DateTime     @default(now())
+  brokenAt              DateTime?
+  organisation          Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  scan                  Scan?        @relation(fields: [scanId], references: [id], onDelete: SetNull)
+  entryAsset            Asset?       @relation("AttackPathEntry", fields: [entryAssetId], references: [id], onDelete: SetNull)
+  targetAsset           Asset?       @relation("AttackPathTarget", fields: [targetAssetId], references: [id], onDelete: SetNull)
+  steps                 AttackPathStep[]
+  observations          AttackPathObservation[]
+
+  @@unique([organisationId, fingerprint])
+  @@index([organisationId, active, riskScore])
+}
+
+model AttackPathStep {
+  id             String             @id @default(cuid())
+  attackPathId   String
+  stepOrder      Int
+  nodeKey        String
+  edgeKey        String?
+  nodeType       String
+  label          String
+  assetId        String?
+  findingId      String?
+  relationshipId String?
+  evidence       String
+  observedState  RelationshipState  @default(OBSERVED)
+  confidence     Confidence         @default(MEDIUM)
+  attackPath     AttackPath         @relation(fields: [attackPathId], references: [id], onDelete: Cascade)
+  asset          Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  finding        Finding?           @relation(fields: [findingId], references: [id], onDelete: SetNull)
+  relationship   AssetRelationship? @relation(fields: [relationshipId], references: [id], onDelete: SetNull)
+
+  @@unique([attackPathId, stepOrder])
+}
+
+model AttackPathObservation {
+  id                   String       @id @default(cuid())
+  attackPathId         String
+  scanId               String
+  active               Boolean
+  riskScore            Int
+  confidence           Confidence
+  scoreContributorsJson String      @default("{}")
+  createdAt            DateTime     @default(now())
+  attackPath           AttackPath   @relation(fields: [attackPathId], references: [id], onDelete: Cascade)
+  scan                 Scan         @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  @@unique([attackPathId, scanId])
+  @@index([scanId, active])
+}
+
+model Alert {
+  id                String        @id @default(cuid())
+  organisationId    String
+  type              AlertType
+  severity          AlertSeverity
+  title             String
+  body              String
+  relatedAssetId    String?
+  relatedFindingId  String?
+  relatedScanId     String?
+  relatedPathId     String?
+  readAt            DateTime?
+  dismissedAt       DateTime?
+  createdAt         DateTime      @default(now())
+  organisation      Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId, readAt, createdAt])
+}
+
+model Report {
+  id             String       @id @default(cuid())
+  organisationId String
+  type           ReportType
+  name           String
+  periodStart    DateTime
+  periodEnd      DateTime
+  status         ReportStatus @default(READY)
+  dataJson       String
+  createdById    String
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy      User         @relation("ReportCreator", fields: [createdById], references: [id])
+
+  @@index([organisationId, createdAt])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organisationId String?
+  userId         String?
+  action         String
+  entityType     String
+  entityId       String?
+  detailsJson    String        @default("{}")
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime      @default(now())
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organisationId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model ScanExclusion {
+  id             String       @id @default(cuid())
+  organisationId String
+  rootDomainId   String
+  pattern        String
+  reason         String
+  enabled        Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  rootDomain     RootDomain   @relation(fields: [rootDomainId], references: [id], onDelete: Cascade)
+
+  @@unique([rootDomainId, pattern])
+}
+
+model NotificationSetting {
+  id                String        @id @default(cuid())
+  organisationId    String
+  userId            String?
+  minSeverity       AlertSeverity @default(HIGH)
+  inAppEnabled      Boolean       @default(true)
+  emailEnabled      Boolean       @default(false)
+  slackEnabled      Boolean       @default(false)
+  teamsEnabled      Boolean       @default(false)
+  webhookEnabled    Boolean       @default(false)
+  webhookUrl        String?
+  largeIncreaseFrom Int           @default(15)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  organisation      Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user              User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, userId])
+}

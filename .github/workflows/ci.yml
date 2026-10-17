@@ -1,0 +1,55 @@
+name: RiskMap analysis gates
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run validate:lock
+      - run: npm run db:generate
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run validate
+      - run: npm test
+      - run: npm run validate:performance
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm audit --audit-level=high
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:e2e
+      - name: Upload browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: riskmap-browser-evidence
+          path: |
+            docs/screenshots/
+            playwright-report/
+            test-results/
+          retention-days: 7

@@ -1,0 +1,10 @@
+.next
+node_modules
+.runtime
+playwright-report
+test-results
+coverage
+prisma/*.db*
+*.tsbuildinfo
+*.zip
+package-lock.json
