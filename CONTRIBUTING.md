@@ -1,30 +1,11 @@
 # Contributing
 
-RiskMap is a focused exposure analysis tool. Changes should help a user understand potential attack paths, choose a Best Next Fix, compare the modeled result or export a useful report.
+RiskMap changes should help users understand potential attack paths, choose a Best Next Fix, compare the modeled result or export a useful report.
 
-## Development
+Use the [quick start](README.md#quick-start) for setup and [testing guide](docs/TESTING.md) for validation commands, browser configuration and release checks. The active application needs no database or worker; [compatibility modules](docs/COMPATIBILITY.md) retain isolated backend regressions.
 
-Use Node 22.16 or a supported Node 24 release, then run `npm ci` and `npm run dev`. The active application needs no environment file, seed, database migration, account or worker. Database and scanning regression modules remain for compatibility tests; see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Keep changes focused, use strict TypeScript and validate untrusted data with Zod. Prefer pure graph, path and scoring functions. Preserve observed/inferred evidence, escaped report text and explicit modeling assumptions. An open service or CVE reference alone does not establish exploitability.
 
-Keep changes focused. Use strict TypeScript, validate untrusted data with Zod, preserve observed/inferred evidence and expose modeling assumptions. Prefer pure functions for graph construction, path search and scoring. Supplied text must remain escaped in the UI and reports. A CVE or open service alone does not establish exploitability.
+Add regression tests for meaningful logic changes. Check keyboard accessibility and supported viewports for material UI changes. Include relevant validation and screenshots in reviews, and explain the resulting behavior and material limitations.
 
-Add regression tests for meaningful logic changes. Check accessibility and all supported viewport sizes for material UI changes. Avoid tests that merely repeat implementation details.
-
-```bash
-npm run validate:lock
-npm run format:check
-npm run lint
-npm run validate
-npm test
-npm run build
-npm run typecheck
-npm run test:e2e
-npm audit --omit=dev --audit-level=high
-npm audit --audit-level=high
-```
-
-The integration runner uses its own `prisma/integration.db`. Never seed, reset or delete an existing application database as part of routine validation. Build before browser checks, which run against a production server.
-
-## Review
-
-Explain the concrete user problem, resulting behavior, relevant tests and material limitations. Include screenshots for UI changes and distinguish a simulated improvement from a verified real-world fix. Preserve existing compatibility security controls if changing those modules; do not expose them without their original access checks.
+Preserve compatibility access checks, network safeguards and existing user databases. Integration tests use only `prisma/integration.db`; routine validation must not reset or seed an application database.

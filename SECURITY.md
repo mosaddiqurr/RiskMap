@@ -25,13 +25,13 @@ Retained database/scanning modules are compatibility regression code and are exc
 
 ## Dependency audits
 
-On 5 October 2026, both production and full npm dependency audits reported zero vulnerabilities. The previous `braces` finding was removed by replacing its Tailwind/ESLint dependency chain, rather than suppressing the audit. Run both checks after dependency changes:
+Run both dependency checks after dependency changes:
 
 ```bash
 npm audit --omit=dev --audit-level=high
 npm audit --audit-level=high
 ```
 
-A clean audit reflects registry advisories at the time of the check, not a guarantee that dependencies are vulnerability-free. See [FINAL_VALIDATION](FINAL_VALIDATION.md) for executed coverage.
+Audit results describe advisories at the time of the check. Repeatable application and browser checks are documented in [testing](docs/TESTING.md).
 
 Never publish `.env`, credentials, real evidence, databases, logs or private reports. Northstar fixtures and publication screenshots are fictional.

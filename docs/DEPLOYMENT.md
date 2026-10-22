@@ -2,6 +2,20 @@
 
 RiskMap runs five pages and two API endpoints in one Next.js process. The analysis workflow requires no database, worker, credentials, persistence volume or migration. Uploaded data is processed transiently; results live in browser-tab memory.
 
+## Local development
+
+Run `npm ci`, then `npm run dev`, and open `http://localhost:3000`. Load the fictional demo from Analyze or upload `public/demo-dataset.json`.
+
+The optional production-preview helper starts a loopback-only server after a build:
+
+```bash
+npm run runtime:start
+npm run runtime:status
+npm run runtime:stop
+```
+
+Set `PORT` in your shell to choose another preview port. The helper records its process in ignored `.runtime/analysis-server.json`; stop only the owned server. Playwright uses port 3100 by default and accepts `PLAYWRIGHT_PORT`.
+
 ## Production startup
 
 Use a maintained Node 22 release (22.16 or later) or Node 24. Install build dependencies, generate compatibility types, and build:
@@ -55,6 +69,18 @@ There is no persistence or account ownership model. Review privacy before sendin
 
 ## Acceptance before advertising the URL
 
-Verify Home -> demo/upload -> analysis -> graph/path evidence -> Best Next Fix -> remediation preview -> JSON/CSV/print report on the actual HTTPS URL. Check all direct routes, icon loading, API errors, preflight and a disallowed origin. Replace `LIVE_DEMO_URL` in README only after that smoke test. See [FINAL_VALIDATION](../FINAL_VALIDATION.md) for local evidence and any unverified remote checks.
+Verify Home -> demo/upload -> analysis -> graph/path evidence -> Best Next Fix -> remediation preview -> JSON/CSV/print report on the actual HTTPS URL. Check all direct routes, icon loading, API errors, preflight and a disallowed origin. Add a hosted-demo link to README only after that smoke test. See [testing](TESTING.md) for repeatable checks.
 
-The original schema and database regression pipeline are compatibility test material. `.env.compatibility.example` documents those modules; do not seed an existing user database for deployment.
+## Troubleshooting
+
+| Issue                           | Action                                                                                                                                                                      |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Port occupied                   | Check `npm run runtime:status`; select another `PORT` or `PLAYWRIGHT_PORT` and preserve unrelated servers.                                                                  |
+| JSON rejected                   | Start with Sample JSON. Use UTF-8, version 1, all collections, valid references and the documented size limits.                                                             |
+| No paths or next fix            | Check explicit public exposure, directed/finding-gated relationships and sensitive targets. No recommendation is returned without modeled path or rounded-score benefit.    |
+| Results disappeared             | Refresh, tab close and Clear analysis discard tab-scoped results. Export a snapshot before closing.                                                                         |
+| Capacity or timeout response    | The process budget is 60 requests per minute and the client timeout is 30 seconds. Retry after the current window; inspect large or dense datasets before repeated retries. |
+| Old generated route types       | Rebuild, then run typecheck.                                                                                                                                                |
+| Database or worker setup errors | The active application requires neither. See [compatibility](COMPATIBILITY.md) and [testing](TESTING.md) for isolated backend checks.                                       |
+
+The original schema and database regression pipeline are compatibility test material. Preserve existing user databases during deployment.
