@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { expect, test } from "@playwright/test";
@@ -78,7 +79,7 @@ test("the branded report shows one logo in print and one in the application head
   await expect(
     page.getByRole("heading", { name: "Your next security decision." })
   ).toBeVisible();
-  await page.getByRole("link", { name: "Report", exact: true }).click();
+  await navigate(page, "Report");
   await expect(page.locator(".site-header .brand-lockup")).toBeVisible();
   await expect(page.locator(".report-brand")).toBeHidden();
   await page.emulateMedia({ media: "print" });

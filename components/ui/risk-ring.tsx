@@ -14,7 +14,7 @@ export function RiskRing({ score, size = "lg" }: { score: number; size?: "sm" | 
         >
           {score}
         </span>
-        <span className="text-[10px] uppercase tracking-wide text-muted">out of 100</span>
+        <span className="text-xs uppercase tracking-wide text-muted">out of 100</span>
       </div>
     </div>
   );

@@ -193,23 +193,23 @@ export function ExposureGraph({
       type: MarkerType.ArrowClosed,
       width: 14,
       height: 14,
-      color: pathEdgeIds.has(e.id) ? "#3157d5" : "#8695a7"
+      color: pathEdgeIds.has(e.id) ? "var(--accent)" : "var(--dim)"
     },
     style: {
-      stroke: pathEdgeIds.has(e.id) ? "#3157d5" : "#8695a7",
+      stroke: pathEdgeIds.has(e.id) ? "var(--accent)" : "var(--dim)",
       strokeWidth: pathEdgeIds.has(e.id) ? 2.3 : 1.2,
       strokeDasharray: e.state === "INFERRED" ? "5 4" : undefined
     },
-    labelStyle: { fontSize: 11, fill: "#46556c" },
+    labelStyle: { fontSize: 13, fill: "var(--muted)" },
     labelBgPadding: [5, 3] as [number, number],
     labelBgBorderRadius: 3,
-    labelBgStyle: { fill: "#f9fafc" },
+    labelBgStyle: { fill: "var(--surface)" },
     ariaLabel: `${e.relationship}, ${e.state.toLowerCase()} relationship`
   }));
   const fit = useCallback(() => {
     void instance?.fitView({
       padding: 0.08,
-      duration: 200,
+      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200,
       maxZoom: 1,
       nodes:
         selectedPath && !query && type === "ALL"
@@ -218,7 +218,12 @@ export function ExposureGraph({
     });
   }, [instance, selectedPath, query, type]);
   useEffect(() => {
-    if (instance) void instance.fitView({ padding: 0.08, maxZoom: 1, duration: 180 });
+    if (instance)
+      void instance.fitView({
+        padding: 0.08,
+        maxZoom: 1,
+        duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 180
+      });
   }, [instance, showOnlyPath, selectedPathId, query, type]);
   function reset() {
     setQuery("");
@@ -226,7 +231,11 @@ export function ExposureGraph({
     setEvidenceState("ALL");
     setShowOnlyPath(false);
     setDetail(null);
-    void instance?.fitView({ padding: 0.16, duration: 200, maxZoom: 1 });
+    void instance?.fitView({
+      padding: 0.16,
+      duration: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 200,
+      maxZoom: 1
+    });
   }
   const finding = detail?.node?.findingId
     ? result.findings.find((f) => f.id === detail.node!.findingId)

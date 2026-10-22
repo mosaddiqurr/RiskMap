@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { readFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { expect, test, type Page } from "@playwright/test";
@@ -85,7 +86,7 @@ test("core journey: ingestion, best fix, paths, finding evidence, comparison, gr
   await page.getByLabel("Search findings").fill("nothing-matches");
   await expect(page.getByText("No findings match these filters.")).toBeVisible();
   await page.getByLabel("Search findings").fill("");
-  await page.getByRole("link", { name: "Exposure Map", exact: true }).click();
+  await navigate(page, "Exposure Map");
   await page.getByLabel("Highlight a path").selectOption("path-3");
   await page.getByLabel("Only this path").check();
   await expect(page.locator(".graph-path-bar")).toContainText("API-01");
@@ -114,7 +115,7 @@ test("core journey: ingestion, best fix, paths, finding evidence, comparison, gr
   await page.locator(".graph-content").screenshot({
     path: path.join(screenshots, `graph-detail-${testInfo.project.name}.png`)
   });
-  await page.getByRole("link", { name: "Report", exact: true }).click();
+  await navigate(page, "Report");
   await expect(page.getByRole("heading", { name: "Executive summary" })).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Methodology and limitations" })
@@ -163,13 +164,13 @@ test("core journey: ingestion, best fix, paths, finding evidence, comparison, gr
   expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
   expect(pdf.length).toBeGreaterThan(10_000);
   await page.emulateMedia({ media: "screen" });
-  await page.getByRole("link", { name: "About", exact: true }).click();
+  await navigate(page, "About");
   await expect(
     page.getByRole("heading", { name: "Best Next Fix methodology" })
   ).toBeVisible();
   await noOverflow(page);
   await capture(page, "about", testInfo.project.name);
-  await page.getByRole("link", { name: "Analyze", exact: true }).click();
+  await navigate(page, "Analyze");
   await expect(
     page.getByRole("heading", { name: "Your next security decision." })
   ).toBeVisible();
@@ -187,7 +188,7 @@ test("core journey: ingestion, best fix, paths, finding evidence, comparison, gr
   await expect(
     page.getByRole("heading", { name: "Your next security decision." })
   ).toBeVisible();
-  await page.getByRole("link", { name: "Report", exact: true }).click();
+  await navigate(page, "Report");
   await expect(page.locator(".report-page")).toContainText(replacement.name);
   await expect(page.locator(".report-page")).toContainText(
     replacement.findings[0]!.evidence
@@ -304,7 +305,7 @@ test("untrusted evidence is escaped and long tokens stay within the viewport", a
   expect(await page.evaluate(() => "__unsafe" in window)).toBe(false);
   expect(await page.locator("#finding-detail img, #finding-detail script").count()).toBe(0);
   await noOverflow(page);
-  await page.getByRole("link", { name: "Report", exact: true }).click();
+  await navigate(page, "Report");
   await expect(page.locator(".report-page script")).toHaveCount(0);
   // The only report image is the trusted, print-only product branding.
   await expect(page.locator(".report-page img")).toHaveCount(1);
@@ -406,9 +407,9 @@ test("WCAG checks and keyboard access on every active page and analysis state", 
   await checkAxe(page);
   await page.getByRole("button", { name: "Preview this fix" }).click();
   await checkAxe(page);
-  await page.getByRole("link", { name: "Exposure Map", exact: true }).click();
+  await navigate(page, "Exposure Map");
   await checkAxe(page);
-  await page.getByRole("link", { name: "Report", exact: true }).click();
+  await navigate(page, "Report");
   await checkAxe(page);
   const tableRegion = page.getByRole("region", { name: "Asset context table" });
   await tableRegion.focus();

@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { expect, test } from "@playwright/test";
 
 test("graph exact path edges, zoom, pan, resize and evidence remain usable", async ({
@@ -8,7 +9,7 @@ test("graph exact path edges, zoom, pan, resize and evidence remain usable", asy
   await expect(
     page.getByRole("heading", { name: "Your next security decision." })
   ).toBeVisible();
-  await page.getByRole("link", { name: "Exposure Map", exact: true }).click();
+  await navigate(page, "Exposure Map");
   await page.getByLabel("Highlight a path").selectOption("path-1");
   await page.getByLabel("Only this path").check();
   await page.getByRole("button", { name: "Fit view", exact: true }).click();
@@ -31,7 +32,8 @@ test("graph exact path edges, zoom, pan, resize and evidence remain usable", asy
   if (!pane) throw new Error("Graph pane is missing");
   const priorPan = await viewport.getAttribute("style");
   const startX = Math.max(15, pane.x + 12);
-  const startY = Math.max(40, pane.y + 30);
+  // Zoom controls can scroll the canvas upward beneath the sticky navigation.
+  const startY = Math.max(110, pane.y + 30);
   await page.mouse.move(startX, startY);
   await page.mouse.down();
   await page.mouse.move(startX + 58, startY + 35, { steps: 8 });

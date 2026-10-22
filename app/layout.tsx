@@ -1,9 +1,20 @@
 import type { Metadata } from "next";
 import branding from "@/assets/branding.json";
-import "./globals.css";
+import localFont from "next/font/local";
 import "@xyflow/react/dist/style.css";
+import "./globals.css";
+import "./design-system.css";
 
 const brandingVersion = branding.version;
+const manrope = localFont({
+  src: [
+    { path: "../public/fonts/Manrope-Regular.ttf", weight: "400", style: "normal" },
+    { path: "../public/fonts/Manrope-SemiBold.ttf", weight: "600", style: "normal" },
+    { path: "../public/fonts/Manrope-ExtraBold.ttf", weight: "800", style: "normal" }
+  ],
+  variable: "--font-manrope",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
   title: { default: "RiskMap", template: "%s | RiskMap" },
@@ -30,8 +41,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" data-theme="dark">
+      <body className={manrope.variable}>{children}</body>
     </html>
   );
 }
